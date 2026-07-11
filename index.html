@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Système — Adrien</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020617">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Système">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --bg:#020617; --panel:rgba(15,23,42,0.75); --text:#e2e8f0; --muted:#64748b;
+    --cyan:#22d3ee; --violet:#a78bfa; --emerald:#34d399; --amber:#fbbf24; --red:#f87171;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Rajdhani',sans-serif; -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+  .font-display{font-family:'Orbitron',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .wrap{max-width:720px; margin:0 auto; padding:24px 16px;}
+  .bg-scan{position:fixed; inset:0; pointer-events:none; opacity:.05;
+    background-image:repeating-linear-gradient(0deg,#22d3ee 0px,transparent 1px,transparent 3px);}
+  .bg-glow{position:fixed; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.10), transparent 60%);}
+
+  .panel{position:relative; background:var(--panel); backdrop-filter:blur(4px);
+    border:1px solid rgba(34,211,238,0.25); padding:16px; margin-bottom:12px;}
+  .panel.violet{border-color:rgba(167,139,250,0.25);}
+  .panel.emerald{border-color:rgba(52,211,153,0.25);}
+  .corner{position:absolute; width:10px; height:10px;}
+  .corner.tl{top:-1px; left:-1px; border-top:2px solid var(--cyan); border-left:2px solid var(--cyan);}
+  .corner.tr{top:-1px; right:-1px; border-top:2px solid var(--cyan); border-right:2px solid var(--cyan);}
+  .corner.bl{bottom:-1px; left:-1px; border-bottom:2px solid var(--cyan); border-left:2px solid var(--cyan);}
+  .corner.br{bottom:-1px; right:-1px; border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan);}
+  .panel.violet .corner{border-color:var(--violet) !important;}
+  .panel.emerald .corner{border-color:var(--emerald) !important;}
+
+  h1.title{font-size:1.6rem; text-align:center; letter-spacing:.05em; margin:0 0 4px;}
+  .kicker{text-align:center; font-size:.7rem; letter-spacing:.3em; color:rgba(34,211,238,.7); margin-bottom:4px;}
+
+  .rank-row{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+  .rank-big{font-size:2.6rem; font-weight:900; text-shadow:0 0 20px rgba(34,211,238,.4);}
+  .rank-meta{font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.15em;}
+  .level-label{font-size:1.05rem;}
+  .xp-total{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.75rem;}
+  .xp-bar-outer{height:8px; background:#1e293b; border:1px solid rgba(34,211,238,.2); margin-top:6px; overflow:hidden;}
+  .xp-bar-inner{height:100%; background:linear-gradient(90deg,#0891b2,#67e8f9); transition:width .4s ease;}
+  .xp-bar-labels{display:flex; justify-content:space-between; font-size:.65rem; color:var(--muted); margin-bottom:4px;}
+
+  .section-head{display:flex; align-items:center; gap:8px; margin:24px 0 10px;}
+  .section-head .line{flex:1; height:1px; background:#1e293b;}
+  .section-head h2{font-size:.85rem; letter-spacing:.15em; text-transform:uppercase; margin:0; color:#cbd5e1;}
+
+  .quest{display:flex; align-items:flex-start; gap:10px;}
+  .quest.done{opacity:.55;}
+  .qcheck{width:22px; height:22px; flex-shrink:0; border:1px solid #475569; display:flex; align-items:center; justify-content:center; cursor:pointer; margin-top:2px; background:transparent;}
+  .qcheck.on{background:var(--cyan); border-color:var(--cyan); color:#020617; font-weight:bold;}
+  .qcheck.on.violet{background:var(--violet); border-color:var(--violet);}
+  .qbody{flex:1; min-width:0;}
+  .qtitle{font-size:1rem;}
+  .qtitle.strike{text-decoration:line-through;}
+  .qtag{font-size:.6rem; color:var(--muted); border:1px solid #334155; padding:0 4px; margin-left:6px;}
+  .qstreak{font-size:.6rem; color:var(--amber); margin-left:6px;}
+  .qdesc{font-size:.75rem; color:var(--muted); margin-top:2px;}
+  .qright{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;}
+  .qxp{font-size:.75rem;}
+  .qxp.cyan{color:var(--cyan);} .qxp.violet{color:var(--violet);}
+  .qdel{background:none; border:none; color:#334155; cursor:pointer; font-size:.85rem;}
+  .qdel:hover{color:var(--red);}
+
+  .dashed-btn{width:100%; background:transparent; border:1px dashed #334155; color:#475569;
+    padding:12px; font-family:'JetBrains Mono',monospace; font-size:.75rem; cursor:pointer;}
+  .dashed-btn:hover{border-color:#64748b; color:#94a3b8;}
+
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%; background:#020617; border:1px solid #334155; color:var(--text);
+    padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:.85rem; margin-bottom:8px;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--cyan);}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  label.chk{font-family:'JetBrains Mono',monospace; font-size:.75rem; color:var(--muted); display:flex; align-items:center; gap:6px;}
+  .btn{font-family:'JetBrains Mono',monospace; font-size:.75rem; padding:8px 16px; border:none; cursor:pointer;}
+  .btn-cyan{background:#0891b2; color:#020617;} .btn-cyan:hover{background:#22d3ee;}
+  .btn-violet{background:#7c3aed; color:#f5f3ff;} .btn-violet:hover{background:#a78bfa; color:#020617;}
+  .btn-emerald{background:#059669; color:#020617;} .btn-emerald:hover{background:#34d399;}
+  .btn-ghost{background:none; color:var(--muted);} .btn-ghost:hover{color:#cbd5e1;}
+
+  .stats-grid{display:grid; grid-template-columns:1fr; gap:10px;}
+  @media(min-width:640px){.stats-grid{grid-template-columns:1fr 1fr;}}
+  .stat-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;}
+  .stat-name{font-size:.9rem;}
+  .stat-cat{font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+  .stat-bottom{display:flex; justify-content:space-between; align-items:flex-end; gap:8px;}
+  .stat-value{font-family:'JetBrains Mono',monospace; font-size:1.3rem;}
+  .stat-log-link{margin-top:10px; background:none; border:none; color:rgba(52,211,153,.8); font-family:'JetBrains Mono',monospace; font-size:.7rem; cursor:pointer; padding:0;}
+  .stat-log-link:hover{color:var(--emerald);}
+  .stat-log-form{margin-top:10px; display:flex; gap:6px;}
+  .stat-log-form input{margin-bottom:0;}
+
+  .toast-wrap{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:50;
+    display:flex; flex-direction:column; gap:8px; width:calc(100% - 32px); max-width:420px; align-items:center;}
+  .toast{width:100%; text-align:center; font-family:'JetBrains Mono',monospace; font-size:.8rem;
+    padding:10px 14px; border:1px solid var(--cyan); background:rgba(8,30,40,.95); color:#67e8f9;
+    animation:slideDown .25s ease-out;}
+  .toast.levelup{border-color:var(--amber); background:rgba(40,30,5,.95); color:#fcd34d;}
+  .toast.danger{border-color:var(--red); background:rgba(40,10,10,.95); color:#fca5a5;}
+  @keyframes slideDown{from{transform:translateY(-16px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+  .banner{font-family:'JetBrains Mono',monospace; font-size:.7rem; color:#fcd34d; background:rgba(60,45,5,.4);
+    border:1px solid rgba(251,191,36,.3); padding:8px 12px; text-align:center; margin-bottom:16px;}
+  .backup-bar{display:flex; gap:8px; justify-content:center; margin:24px 0 8px; flex-wrap:wrap;}
+  .footer-note{text-align:center; font-size:.7rem; color:#334155; margin-top:30px; font-family:'JetBrains Mono',monospace;}
+  .footer-note button{background:none;border:none;color:#334155;font-family:'JetBrains Mono',monospace;font-size:.7rem;cursor:pointer;}
+  .footer-note button:hover{color:var(--red);}
+</style>
+</head>
+<body>
+<div class="bg-scan"></div>
+<div class="bg-glow"></div>
+<div class="toast-wrap" id="toasts"></div>
+<div class="wrap" id="app"></div>
+<input type="file" id="importFile" accept="application/json" style="display:none">
+
+<script>
+/* ---------- helpers ---------- */
+const STORAGE_KEY = "adrien-system-state-v1";
+const todayStr = () => new Date().toISOString().slice(0,10);
+const uid = () => Math.random().toString(36).slice(2,10);
+const pad = (n) => n.toString().padStart(2,"0");
+
+function formatTime(totalSeconds){
+  const s = Math.round(totalSeconds);
+  if(s>=3600){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return `${h}:${pad(m)}:${pad(sec)}`;}
+  const m=Math.floor(s/60), sec=s%60; return `${m}:${pad(sec)}`;
+}
+function parseTimeToSeconds(str){
+  const parts = str.split(":").map(p=>parseInt(p,10));
+  if(parts.some(p=>isNaN(p))) return null;
+  if(parts.length===3) return parts[0]*3600+parts[1]*60+parts[2];
+  if(parts.length===2) return parts[0]*60+parts[1];
+  if(parts.length===1) return parts[0];
+  return null;
+}
+function formatStatValue(stat){
+  if(stat.format==="time") return formatTime(stat.value);
+  return `${stat.value}${stat.unit ? " "+stat.unit : ""}`;
+}
+function computeStreak(completedDates){
+  if(!completedDates || !completedDates.length) return 0;
+  const set = new Set(completedDates);
+  let d = new Date();
+  if(!set.has(todayStr())){
+    d.setDate(d.getDate()-1); // pas encore fait aujourd'hui : la série reste valable jusqu'à la fin du jour
+  }
+  let streak = 0;
+  while(true){
+    const ds = d.toISOString().slice(0,10);
+    if(set.has(ds)){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+function levelFromXp(xp){
+  const level = Math.floor(xp/100)+1;
+  return { level, xpInLevel: xp%100, xpToNext:100 };
+}
+function rankFromLevel(level){
+  if(level<5) return {rank:"E", color:"#94a3b8"};
+  if(level<10) return {rank:"D", color:"#22d3ee"};
+  if(level<15) return {rank:"C", color:"#38bdf8"};
+  if(level<20) return {rank:"B", color:"#34d399"};
+  if(level<25) return {rank:"A", color:"#a78bfa"};
+  return {rank:"S", color:"#fbbf24"};
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- default data ---------- */
+function defaultState(){
+  return {
+    player: { name:"Adrien", xp:0 },
+    quests: [
+      {id:uid(), type:"principale", recurring:false, title:"Full Planche", description:"Maîtriser la position de planche complète, bras tendus.", xp:300, status:"active"},
+      {id:uid(), type:"principale", recurring:false, title:"Prochaine Spartan Race", description:"Améliorer le temps et réduire les pénalités par rapport à Andorre (1h23, 2 pénalités).", xp:200, status:"active"},
+      {id:uid(), type:"principale", recurring:false, title:"Sommet du Montcalm", description:"Ascension réussie, gestion météo et effort en autonomie.", xp:150, status:"active"},
+      {id:uid(), type:"principale", recurring:false, title:"Force avancée au poids du corps", description:"Atteindre un niveau avancé sur dips, tractions lestées et gainage.", xp:250, status:"active"},
+      {id:uid(), type:"principale", recurring:false, title:"Longévité — Optimisation naturelle", description:"Tenir le protocole hormones / récupération sur la durée.", xp:200, status:"active"},
+      {id:uid(), type:"principale", recurring:false, title:"250 exercices — Larousse (bonne plume)", description:"Score actuel : 7/11 sur les 2 premières pages.", xp:150, status:"active"},
+      {id:uid(), type:"secondaire", recurring:true, title:"Douche froide matinale", description:"Askēsis quotidienne.", xp:15, status:"active", completedDates:[]},
+      {id:uid(), type:"secondaire", recurring:true, title:"Lecture stoïcienne", description:"5-10 min pendant le café.", xp:10, status:"active", completedDates:[]},
+      {id:uid(), type:"secondaire", recurring:true, title:"Mobilité 20 min", description:"Épaules, hanches, chevilles, thoracique.", xp:15, status:"active", completedDates:[]},
+      {id:uid(), type:"secondaire", recurring:true, title:"Puzzle échecs ou Rubik's Cube", description:"10-15 min de concentration fraîche.", xp:10, status:"active", completedDates:[]},
+      {id:uid(), type:"secondaire", recurring:true, title:"Exercice de rédaction (Larousse)", description:"", xp:10, status:"active", completedDates:[]},
+    ],
+    stats: [
+      {id:uid(), name:"Deadlift", category:"Force", format:"number", unit:"kg", higherIsBetter:true, value:150, history:[{date:todayStr(), value:150}]},
+      {id:uid(), name:"Squat", category:"Force", format:"number", unit:"kg", higherIsBetter:true, value:110, history:[{date:todayStr(), value:110}]},
+      {id:uid(), name:"Dips lestés", category:"Force", format:"number", unit:"kg ajoutés", higherIsBetter:true, value:85, history:[{date:todayStr(), value:85}]},
+      {id:uid(), name:"5 km", category:"Endurance", format:"time", unit:"", higherIsBetter:false, value:1260, history:[{date:todayStr(), value:1260}]},
+      {id:uid(), name:"Marathon", category:"Endurance", format:"time", unit:"", higherIsBetter:false, value:13680, history:[{date:todayStr(), value:13680}]},
+      {id:uid(), name:"Échecs (Rapide)", category:"Cognitif", format:"number", unit:"Elo", higherIsBetter:true, value:812, history:[{date:todayStr(), value:812}]},
+      {id:uid(), name:"Rubik's Cube (moyenne)", category:"Rubik's Cube", format:"time", unit:"", higherIsBetter:false, value:128, history:[{date:todayStr(), value:128}]},
+      {id:uid(), name:"Rubik's Cube (record)", category:"Rubik's Cube", format:"time", unit:"", higherIsBetter:false, value:102, history:[{date:todayStr(), value:102}]},
+      {id:uid(), name:"Rédaction (Larousse)", category:"Cognitif", format:"number", unit:"score /11", higherIsBetter:true, value:7, history:[{date:todayStr(), value:7}]},
+    ],
+  };
+}
+
+/* ---------- state & persistence ---------- */
+let state = null;
+let storageOk = true;
+let showAddQuest = null; // 'principale' | 'secondaire' | null
+let showAddStat = false;
+let openLogFor = null;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    state = raw ? JSON.parse(raw) : defaultState();
+  }catch(e){
+    storageOk = false;
+    state = defaultState();
+  }
+}
+function saveState(){
+  if(!storageOk) return;
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    storageOk = false;
+    pushToast("Stockage local indisponible — exporte une sauvegarde manuelle pour ne rien perdre.", "danger");
+  }
+}
+
+/* ---------- toasts ---------- */
+function pushToast(text, kind="xp"){
+  const wrap = document.getElementById("toasts");
+  const el = document.createElement("div");
+  el.className = "toast " + (kind==="levelup"?"levelup":kind==="danger"?"danger":"");
+  el.textContent = (kind==="levelup"?"★ ":"▸ ") + text;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+
+/* ---------- mutations ---------- */
+function grantXp(amount, label){
+  const before = levelFromXp(state.player.xp).level;
+  state.player.xp = Math.max(0, state.player.xp + amount);
+  const after = levelFromXp(state.player.xp).level;
+  if(amount > 0) pushToast(`${label} — +${amount} XP`, "xp");
+  saveState();
+  render();
+  if(after > before) setTimeout(()=>pushToast(`NIVEAU SUPÉRIEUR — Niveau ${after} atteint`, "levelup"), 350);
+}
+
+function toggleQuest(id){
+  const q = state.quests.find(x=>x.id===id);
+  if(!q) return;
+  if(q.recurring){
+    const t = todayStr();
+    const done = q.completedDates.includes(t);
+    q.completedDates = done ? q.completedDates.filter(d=>d!==t) : [...q.completedDates, t];
+    grantXp(done ? -q.xp : q.xp, q.title);
+  } else {
+    const willComplete = q.status !== "completed";
+    q.status = willComplete ? "completed" : "active";
+    grantXp(willComplete ? q.xp : -q.xp, q.title);
+  }
+}
+function deleteQuest(id){
+  state.quests = state.quests.filter(q=>q.id!==id);
+  saveState(); render();
+}
+function submitAddQuest(type){
+  const title = document.getElementById("nq-title").value.trim();
+  const desc = document.getElementById("nq-desc").value.trim();
+  const xp = parseInt(document.getElementById("nq-xp").value,10) || 0;
+  const recurring = document.getElementById("nq-recurring").checked;
+  if(!title) return;
+  state.quests.push({id:uid(), type, recurring, title, description:desc, xp, status:"active", completedDates: recurring?[]:undefined});
+  showAddQuest = null;
+  saveState(); render();
+}
+function deleteStat(id){
+  state.stats = state.stats.filter(s=>s.id!==id);
+  saveState(); render();
+}
+function submitAddStat(){
+  const name = document.getElementById("ns-name").value.trim();
+  const category = document.getElementById("ns-cat").value;
+  const format = document.getElementById("ns-format").value;
+  const unit = document.getElementById("ns-unit").value.trim();
+  const higherIsBetter = document.getElementById("ns-higher").checked;
+  const rawVal = document.getElementById("ns-value").value.trim();
+  const value = format==="time" ? parseTimeToSeconds(rawVal) : parseFloat(rawVal);
+  if(!name || value===null || isNaN(value)) return;
+  state.stats.push({id:uid(), name, category, format, unit, higherIsBetter, value, history:[{date:todayStr(), value}]});
+  showAddStat = false;
+  saveState(); render();
+}
+function submitLogValue(statId){
+  const stat = state.stats.find(s=>s.id===statId);
+  if(!stat) return;
+  const raw = document.getElementById("log-input-"+statId).value.trim();
+  const value = stat.format==="time" ? parseTimeToSeconds(raw) : parseFloat(raw);
+  if(value===null || isNaN(value)){ pushToast("Valeur invalide", "danger"); return; }
+  stat.value = value;
+  stat.history.push({date:todayStr(), value});
+  openLogFor = null;
+  saveState(); render();
+  pushToast(`${stat.name} mis à jour`, "xp");
+}
+
+function resetAll(){
+  if(!confirm("Réinitialiser toutes les données du système ? Cette action est irréversible.")) return;
+  state = defaultState();
+  saveState(); render();
+}
+
+/* ---------- backup: export / import ---------- */
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `systeme-adrien-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  pushToast("Sauvegarde exportée", "xp");
+}
+function importBackup(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed.player || !parsed.quests || !parsed.stats) throw new Error("format invalide");
+      if(!confirm("Remplacer les données actuelles par cette sauvegarde ?")) return;
+      state = parsed;
+      saveState(); render();
+      pushToast("Sauvegarde importée", "xp");
+    }catch(e){
+      pushToast("Fichier de sauvegarde invalide", "danger");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- sparkline ---------- */
+function sparkline(history, higherIsBetter){
+  if(!history || history.length<2) return `<div class="mono" style="font-size:.6rem;color:#334155;">historique insuffisant</div>`;
+  const values = history.map(h=>h.value);
+  const min = Math.min(...values), max = Math.max(...values), range = (max-min)||1;
+  const w=110, h=26;
+  const pts = values.map((v,i)=>{
+    const x = (i/(values.length-1))*w;
+    const yRaw = (v-min)/range;
+    const y = higherIsBetter ? h - yRaw*h : yRaw*h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const improved = higherIsBetter ? values[values.length-1] >= values[0] : values[values.length-1] <= values[0];
+  return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${improved?'#34d399':'#f87171'}" stroke-width="1.5"/></svg>`;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const { level, xpInLevel, xpToNext } = levelFromXp(state.player.xp);
+  const rankInfo = rankFromLevel(level);
+  const principales = state.quests.filter(q=>q.type==="principale");
+  const secondaires = state.quests.filter(q=>q.type==="secondaire");
+  const today = todayStr();
+
+  let html = "";
+
+  if(!storageOk){
+    html += `<div class="banner">Stockage local indisponible sur ce navigateur — exporte une sauvegarde manuelle pour ne rien perdre.</div>`;
+  }
+
+  html += `
+    <div class="kicker font-display">SYSTÈME ACTIVÉ</div>
+    <h1 class="title font-display">${esc(state.player.name)}</h1>
+
+    <div class="panel">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="rank-row">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="rank-big font-display" style="color:${rankInfo.color};">${rankInfo.rank}</div>
+          <div>
+            <div class="rank-meta mono">Rang</div>
+            <div class="level-label font-display">Niveau ${level}</div>
+          </div>
+        </div>
+        <div class="xp-total mono">${state.player.xp} XP total</div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="xp-bar-labels mono"><span>XP</span><span>${xpInLevel} / ${xpToNext}</span></div>
+        <div class="xp-bar-outer"><div class="xp-bar-inner" style="width:${(xpInLevel/xpToNext)*100}%;"></div></div>
+      </div>
+    </div>
+
+    <div class="section-head"><h2 class="font-display">⚔ Quêtes Principales</h2><div class="line"></div></div>
+    ${principales.map(q=>questCard(q, "violet")).join("")}
+    ${addQuestBlock("principale")}
+
+    <div class="section-head"><h2 class="font-display">⚡ Quêtes Secondaires — Quotidiennes</h2><div class="line"></div></div>
+    ${secondaires.map(q=>questCard(q, "cyan")).join("")}
+    ${addQuestBlock("secondaire")}
+
+    <div class="section-head"><h2 class="font-display">💪 Statistiques & Évolution</h2><div class="line"></div></div>
+    <div class="stats-grid">
+      ${state.stats.map(statCard).join("")}
+    </div>
+    ${addStatBlock()}
+
+    <div class="backup-bar">
+      <button class="btn btn-cyan mono" onclick="exportBackup()">⬇ Exporter une sauvegarde</button>
+      <button class="btn btn-ghost mono" style="border:1px solid #334155;" onclick="document.getElementById('importFile').click()">⬆ Importer une sauvegarde</button>
+    </div>
+
+    <div class="footer-note">
+      <button onclick="resetAll()">réinitialiser le système</button>
+    </div>
+  `;
+
+  document.getElementById("app").innerHTML = html;
+}
+
+function questCard(q, accent){
+  const checked = q.recurring ? q.completedDates.includes(todayStr()) : q.status==="completed";
+  const streak = q.recurring ? computeStreak(q.completedDates) : 0;
+  return `
+    <div class="panel ${accent==='violet'?'violet':''}">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="quest ${checked?'done':''}">
+        <button class="qcheck ${checked?'on':''} ${accent==='violet'?'violet':''}" onclick="toggleQuest('${q.id}')">${checked?'✓':''}</button>
+        <div class="qbody">
+          <div class="qtitle ${checked?'strike':''}">${esc(q.title)}${q.recurring?'<span class="qtag mono">quotidienne</span>':''}${streak>0?`<span class="qstreak mono">🔥 ${streak} j</span>`:''}</div>
+          ${q.description ? `<div class="qdesc">${esc(q.description)}</div>` : ""}
+        </div>
+        <div class="qright">
+          <div class="qxp mono ${accent==='violet'?'violet':'cyan'}">+${q.xp} XP</div>
+          <button class="qdel" onclick="deleteQuest('${q.id}')">✕</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function addQuestBlock(type){
+  if(showAddQuest !== type){
+    return `<button class="dashed-btn" onclick="showAddQuest='${type}';render();">+ nouvelle quête ${type}</button>`;
+  }
+  return `
+    <div class="panel ${type==='principale'?'violet':''}">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <input type="text" id="nq-title" placeholder="> titre de la quête">
+      <input type="text" id="nq-desc" placeholder="> description (optionnel)">
+      <div class="row">
+        <label class="chk">XP <input type="number" id="nq-xp" value="${type==='principale'?100:10}" style="width:70px;margin-bottom:0;"></label>
+        <label class="chk"><input type="checkbox" id="nq-recurring" ${type==='secondaire'?'checked':''}> quotidienne</label>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <button class="btn btn-cyan" onclick="submitAddQuest('${type}')">valider</button>
+        <button class="btn btn-ghost" onclick="showAddQuest=null;render();">annuler</button>
+      </div>
+    </div>
+  `;
+}
+
+function statCard(stat){
+  return `
+    <div class="panel emerald">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="stat-top">
+        <div>
+          <div class="stat-name">${esc(stat.name)}</div>
+          <div class="stat-cat mono">${esc(stat.category)}</div>
+        </div>
+        <button class="qdel" onclick="deleteStat('${stat.id}')">✕</button>
+      </div>
+      <div class="stat-bottom">
+        <div class="stat-value mono">${formatStatValue(stat)}</div>
+        ${sparkline(stat.history, stat.higherIsBetter)}
+      </div>
+      ${openLogFor===stat.id ? `
+        <div class="stat-log-form">
+          <input type="text" id="log-input-${stat.id}" placeholder="${stat.format==='time'?'mm:ss':'valeur'}">
+          <button class="btn btn-emerald" onclick="submitLogValue('${stat.id}')">OK</button>
+          <button class="btn btn-ghost" onclick="openLogFor=null;render();">✕</button>
+        </div>
+      ` : `<button class="stat-log-link" onclick="openLogFor='${stat.id}';render();">+ ajouter une mesure</button>`}
+    </div>
+  `;
+}
+
+function addStatBlock(){
+  if(!showAddStat){
+    return `<button class="dashed-btn" onclick="showAddStat=true;render();">+ nouveau suivi statistique</button>`;
+  }
+  return `
+    <div class="panel emerald">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <input type="text" id="ns-name" placeholder="> nom (ex: Front Lever)">
+      <div class="row">
+        <select id="ns-cat" style="flex:1;">
+          ${["Force","Endurance","Cognitif","Rubik's Cube","Mental","Autre"].map(c=>`<option>${c}</option>`).join("")}
+        </select>
+        <select id="ns-format" style="flex:1;">
+          <option value="number">nombre (kg, Elo...)</option>
+          <option value="time">temps (mm:ss)</option>
+        </select>
+      </div>
+      <div class="row">
+        <input type="text" id="ns-unit" placeholder="unité (kg, Elo...)" style="flex:1;">
+        <input type="text" id="ns-value" placeholder="valeur initiale" style="flex:1;">
+      </div>
+      <label class="chk" style="margin-bottom:8px;"><input type="checkbox" id="ns-higher" checked> plus haut = mieux</label>
+      <div class="row">
+        <button class="btn btn-emerald" onclick="submitAddStat()">valider</button>
+        <button class="btn btn-ghost" onclick="showAddStat=false;render();">annuler</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- init ---------- */
+loadState();
+render();
+document.getElementById("importFile").addEventListener("change", (e)=>{
+  if(e.target.files[0]) importBackup(e.target.files[0]);
+  e.target.value = "";
+});
+if("serviceWorker" in navigator && (location.protocol==="https:" || location.protocol==="http:")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
