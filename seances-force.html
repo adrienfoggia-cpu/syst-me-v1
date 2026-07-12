@@ -56,13 +56,14 @@
   .btn-emerald{background:#059669;color:#020617;} .btn-emerald:hover{background:#34d399;}
 
   .sets-grid{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
-  .set-box{background:#0b1220; border:1px solid #1e293b; padding:6px 8px; display:flex; flex-direction:column; align-items:center; gap:5px; width:64px;}
+  .set-box{background:#0b1220; border:1px solid #1e293b; padding:6px 8px; display:flex; flex-direction:column; align-items:center; gap:5px; width:72px;}
   .set-box.checked{border-color:var(--emerald); background:rgba(52,211,153,.06);}
   .set-box .slabel{font-family:'JetBrains Mono',monospace; font-size:.6rem; color:var(--muted);}
   .set-box input[type=checkbox]{width:16px; height:16px; accent-color:var(--emerald);}
   .set-box input[type=text]{width:100%; background:#020617; border:1px solid #334155; color:var(--text);
-    font-family:'JetBrains Mono',monospace; font-size:.7rem; padding:4px; text-align:center;}
+    font-family:'JetBrains Mono',monospace; font-size:.68rem; padding:4px; text-align:center; margin-top:2px;}
   .set-box input:focus{outline:none; border-color:var(--cyan);}
+  .set-box .sub-label{font-family:'JetBrains Mono',monospace; font-size:.5rem; color:#475569; margin-top:2px;}
 
   .row-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;}
   .current-val{font-family:'JetBrains Mono',monospace; font-size:1rem; color:var(--emerald);}
@@ -94,7 +95,7 @@
 
 <script>
 /* ---------- helpers ---------- */
-const STORAGE_KEY = "adrien-force-sessions-v2";
+const STORAGE_KEY = "adrien-force-sessions-v3";
 const todayStr = () => new Date().toISOString().slice(0,10);
 const pad = (n) => n.toString().padStart(2,"0");
 function formatMMSS(totalSeconds){
@@ -122,6 +123,7 @@ function beep(){
 }
 
 /* ---------- default data ---------- */
+/* track: "weight" (poids+reps par série) | "time" (durée par série) | null (reps seules, sauf noLog) */
 const SESSIONS = [
   {
     id:"dips", name:"Dips lestés", warmup:"Mobilité épaules/poignets, 2 séries de dips au poids du corps (10-12 reps).",
@@ -130,7 +132,7 @@ const SESSIONS = [
       {id:"pompes-archer", name:"Pompes archer / pseudo planche", scheme:"8-10 reps", sets:3, rest:60, track:null},
       {id:"row-elastique", name:"Row à l'élastique", scheme:"12 reps", sets:3, rest:60, track:null},
       {id:"l-sit", name:"L-sit", scheme:"hold max", sets:4, rest:60, track:"time", unit:""},
-      {id:"boxe-dips", name:"Sac de boxe (optionnel)", scheme:"2 min / round", sets:4, rest:120, track:null, note:"Relance le minuteur à chaque round."},
+      {id:"boxe-dips", name:"Sac de boxe (optionnel)", scheme:"2 min / round", sets:4, rest:120, track:null, noLog:true, note:"Relance le minuteur à chaque round."},
     ]
   },
   {
@@ -148,7 +150,7 @@ const SESSIONS = [
       {id:"deadlift", name:"Deadlift", scheme:"5-6 reps", sets:5, rest:120, track:"weight", unit:"kg"},
       {id:"tractions-lestees", name:"Tractions lestées", scheme:"6-8 reps", sets:3, rest:90, track:"weight", unit:"kg"},
       {id:"hollow-body", name:"Hollow body", scheme:"30-45s", sets:3, rest:60, track:"time", unit:""},
-      {id:"boxe-deadlift", name:"Sac de boxe (optionnel)", scheme:"2 min / round", sets:4, rest:120, track:null, note:"Relance le minuteur à chaque round."},
+      {id:"boxe-deadlift", name:"Sac de boxe (optionnel)", scheme:"2 min / round", sets:4, rest:120, track:null, noLog:true, note:"Relance le minuteur à chaque round."},
     ]
   },
 ];
@@ -267,11 +269,20 @@ function submitSession(exId){
   for(let i=1; i<=ex.sets; i++){
     const chk = document.getElementById(`setchk-${exId}-${i}`);
     if(chk && chk.checked){
-      const input = document.getElementById(`setval-${exId}-${i}`);
-      const raw = input.value.trim();
-      const value = ex.track==="time" ? parseTimeToSeconds(raw) : parseFloat(raw);
-      if(value===null || isNaN(value)){ pushToast(`Valeur invalide série ${i}`, "danger"); return; }
-      values.push(value);
+      if(ex.track==="weight"){
+        const w = parseFloat(document.getElementById(`setval-${exId}-${i}`).value.trim());
+        const r = parseInt(document.getElementById(`setreps-${exId}-${i}`).value.trim(), 10);
+        if(isNaN(w) || isNaN(r)){ pushToast(`Poids ou reps invalide série ${i}`, "danger"); return; }
+        values.push({weight:w, reps:r});
+      } else if(ex.track==="time"){
+        const t = parseTimeToSeconds(document.getElementById(`setval-${exId}-${i}`).value.trim());
+        if(t===null){ pushToast(`Durée invalide série ${i}`, "danger"); return; }
+        values.push({time:t});
+      } else {
+        const r = parseInt(document.getElementById(`setreps-${exId}-${i}`).value.trim(), 10);
+        if(isNaN(r)){ pushToast(`Reps invalides série ${i}`, "danger"); return; }
+        values.push({reps:r});
+      }
     }
   }
   if(!values.length){ pushToast("Aucune série cochée", "danger"); return; }
@@ -317,11 +328,25 @@ function resetAll(){
   saveState(); render();
 }
 
-/* ---------- sparkline (basé sur la meilleure série de chaque séance) ---------- */
-function topValue(entry){ return Math.max(...entry.sets); }
-function sparkline(history){
+/* ---------- valeurs / affichage selon le type de suivi ---------- */
+function topValue(entry, ex){
+  if(ex.track==="weight") return Math.max(...entry.sets.map(s=>s.weight));
+  if(ex.track==="time") return Math.max(...entry.sets.map(s=>s.time));
+  return Math.max(...entry.sets.map(s=>s.reps));
+}
+function formatTop(v, ex){
+  if(ex.track==="time") return formatMMSS(v);
+  if(ex.track==="weight") return `${v}${ex.unit?" "+ex.unit:""}`;
+  return `${v} reps`;
+}
+function formatSetDetail(s, ex){
+  if(ex.track==="weight") return `${s.weight}${ex.unit?ex.unit:""}${s.reps!==undefined?" x"+s.reps:""}`;
+  if(ex.track==="time") return formatMMSS(s.time);
+  return `${s.reps} reps`;
+}
+function sparkline(history, ex){
   if(!history || history.length<2) return `<div class="mono" style="font-size:.6rem;color:#334155;">historique insuffisant</div>`;
-  const values = history.map(topValue);
+  const values = history.map(h=>topValue(h, ex));
   const min = Math.min(...values), max = Math.max(...values), range=(max-min)||1;
   const w=100,h=24;
   const pts = values.map((v,i)=>{
@@ -366,51 +391,63 @@ function exerciseCard(ex){
   const t = ensureTimer(ex.id);
   const history = logs[ex.id] || [];
   const last = lastEntryFor(ex.id);
-  const lastTop = last ? topValue(last) : null;
-  const lastDisplay = lastTop!==null ? (ex.track==="time" ? formatMMSS(lastTop) : `${lastTop}${ex.unit?" "+ex.unit:""}`) : null;
-  const prefillPerSet = (last && last.sets) ? last.sets : [];
+  const lastTop = last ? topValue(last, ex) : null;
+  const lastDisplay = lastTop!==null ? formatTop(lastTop, ex) : null;
+  const prefillSets = (last && last.sets) ? last.sets : [];
 
-  let setsGrid = "";
-  if(ex.track){
-    let boxes = "";
-    for(let i=1;i<=ex.sets;i++){
-      const prefill = prefillPerSet[i-1] !== undefined ? prefillPerSet[i-1] : (prefillPerSet.length ? prefillPerSet[prefillPerSet.length-1] : "");
-      const prefillDisplay = ex.track==="time" && typeof prefill === "number" ? formatMMSS(prefill) : prefill;
+  let boxes = "";
+  for(let i=1;i<=ex.sets;i++){
+    const prefill = prefillSets[i-1] !== undefined ? prefillSets[i-1] : (prefillSets.length ? prefillSets[prefillSets.length-1] : {});
+    if(ex.track==="weight"){
       boxes += `
         <div class="set-box" id="setbox-${ex.id}-${i}">
           <span class="slabel">S${i}</span>
           <input type="checkbox" id="setchk-${ex.id}-${i}" onchange="toggleSetBox('${ex.id}',${i})">
-          <input type="text" id="setval-${ex.id}-${i}" value="${prefillDisplay!==undefined?prefillDisplay:''}" placeholder="${ex.track==='time'?'mm:ss':ex.unit}">
+          <input type="text" id="setval-${ex.id}-${i}" value="${prefill.weight!==undefined?prefill.weight:''}" placeholder="${ex.unit}">
+          <span class="sub-label">poids</span>
+          <input type="text" id="setreps-${ex.id}-${i}" value="${prefill.reps!==undefined?prefill.reps:''}" placeholder="reps">
+          <span class="sub-label">reps</span>
         </div>`;
-    }
-    setsGrid = `<div class="sets-grid">${boxes}</div>`;
-  } else {
-    let boxes = "";
-    for(let i=1;i<=ex.sets;i++){
+    } else if(ex.track==="time"){
+      boxes += `
+        <div class="set-box" id="setbox-${ex.id}-${i}">
+          <span class="slabel">S${i}</span>
+          <input type="checkbox" id="setchk-${ex.id}-${i}" onchange="toggleSetBox('${ex.id}',${i})">
+          <input type="text" id="setval-${ex.id}-${i}" value="${prefill.time!==undefined?formatMMSS(prefill.time):''}" placeholder="mm:ss">
+        </div>`;
+    } else if(ex.noLog){
       boxes += `
         <div class="set-box" id="setbox-${ex.id}-${i}">
           <span class="slabel">S${i}</span>
           <input type="checkbox" id="setchk-${ex.id}-${i}" onchange="toggleSetBox('${ex.id}',${i})">
         </div>`;
+    } else {
+      boxes += `
+        <div class="set-box" id="setbox-${ex.id}-${i}">
+          <span class="slabel">S${i}</span>
+          <input type="checkbox" id="setchk-${ex.id}-${i}" onchange="toggleSetBox('${ex.id}',${i})">
+          <input type="text" id="setreps-${ex.id}-${i}" value="${prefill.reps!==undefined?prefill.reps:''}" placeholder="reps">
+          <span class="sub-label">reps</span>
+        </div>`;
     }
-    setsGrid = `<div class="sets-grid">${boxes}</div>`;
-    if(ex.note) setsGrid += `<div class="note-box">${esc(ex.note)}</div>`;
   }
+  let setsGrid = `<div class="sets-grid">${boxes}</div>`;
+  if(ex.noLog && ex.note) setsGrid += `<div class="note-box">${esc(ex.note)}</div>`;
 
   let trackFooter = "";
-  if(ex.track){
+  if(!ex.noLog){
     trackFooter = `
       <div class="row-actions">
         <button class="btn btn-emerald" onclick="submitSession('${ex.id}')">Enregistrer la séance</button>
         ${lastDisplay ? `<span class="current-val">dernier : ${lastDisplay}</span>` : ""}
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        ${sparkline(history)}
+        ${sparkline(history, ex)}
         <button class="hist-toggle" onclick="openHistFor=openHistFor==='${ex.id}'?null:'${ex.id}';render();">${openHistFor===ex.id?'masquer':'voir'} l'historique (${history.length})</button>
       </div>
       ${openHistFor===ex.id ? `
         <div class="hist-list">
-          ${history.slice().reverse().map(h=>`<div>${h.date} — ${h.sets.map(v=>ex.track==='time'?formatMMSS(v):v).join(" / ")}${ex.unit?" "+ex.unit:""}</div>`).join("") || "<div>Aucune donnée</div>"}
+          ${history.slice().reverse().map(h=>`<div>${h.date} — ${h.sets.map(s=>formatSetDetail(s, ex)).join(" / ")}</div>`).join("") || "<div>Aucune donnée</div>"}
         </div>
         ${history.length ? `<button class="hist-toggle" style="color:#f87171;margin-top:6px;" onclick="deleteLastEntry('${ex.id}')">supprimer la dernière séance</button>` : ""}
       ` : ""}
